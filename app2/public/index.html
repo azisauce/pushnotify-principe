@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>App2</title>
+</head>
+<body>
+  <h1>App2</h1>
+  <button id="notifyApp1">Notify App1</button>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(registration => {
+        console.log('Service Worker registered', registration);
+      }).catch(error => {
+        console.error('Service Worker registration failed', error);
+      });
+    }
+
+
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+      const rawData = atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
+    const publicVapidKey = 'BI94FmVQGdmr_o3yL6_BISdiNXXC-WdSnm9jHeEzCYFY-YYnOKuWVlKrR57_b1szPHQqKzh2BADWCqihqYIsGS0';
+
+
+    navigator.serviceWorker.ready.then(registration => {
+      return registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+      });
+    }).then(subscription => {
+      return fetch('/subscribe', {
+        method: 'POST',
+        body: JSON.stringify(subscription),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    });
+
+    document.getElementById('notifyApp1').onclick = () => {
+      socket.emit('notify-app1', { title: 'App1 Notification', body: 'This is from App2' });
+    };
+
+    socket.on('notification', data => {
+      navigator.serviceWorker.ready.then(registration => {
+        registration.showNotification(data.title, {
+          body: data.body,
+        });
+      });
+    });
+  </script>
+</body>
+</html>
